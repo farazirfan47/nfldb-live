@@ -1,0 +1,149 @@
+#!/usr/bin/env python2
+
+# This script generates an er file, which in turn generates a graphical
+# ER diagram using my `erd` program. The columns and types of each table
+# are written by querying nfldb's information schema. Relationships between
+# entities are written out manually.
+#
+# Note that this script supports a `--condense` option that writes a smaller
+# er file. Namely, it excludes many of the play and player statistical
+# columns. This provides a more compact ER diagram that is a useful
+# introduction to the nfldb schema.
+
+from __future__ import absolute_import, division, print_function
+import sys
+
+import nfldb
+
+template_erd = '''
+title {{label: "nfldb Entity-Relationship diagram{condensed}", size: "20"}}
+
+# Entities
+{entities}
+
+# Relationships
+{relationships}
+'''
+
+template_entity = '''
+[{name}] {{bgcolor: "{color}"}}
+{columns}
+'''
+
+template_column = '  {pk}{fk}{column} {{label: "{type}"}}'
+
+tables = ['meta', 'player', 'team', 'game', 'drive',
+          'play', 'agg_play', 'play_player']
+
+condense_whitelist = {
+    'player': ['player_id', 'full_name', 'team', 'position', 'status'],
+    'team': ['team_id', 'city', 'name'],
+    'game': ['gsis_id', 'start_time', 'week', 'season_year', 'season_type',
+             'finished', 'home_team', 'home_score', 'away_team', 'away_score'],
+    'drive': ['gsis_id', 'drive_id', 'start_field', 'start_time', 'end_field',
+              'end_time', 'pos_team', 'pos_time'],
+    'play': ['gsis_id', 'drive_id', 'play_id', 'time', 'pos_team', 'yardline',
+             'down', 'yards_to_go'],
+    'agg_play': ['gsis_id', 'drive_id', 'play_id'],
+    'play_player': ['gsis_id', 'drive_id', 'play_id', 'player_id', 'team'],
+    'meta': ['version', 'season_type', 'season_year', 'week'],
+}
+
+colors = {
+    'player': '#d0e0d0', 'team': '#d0e0d0', 'meta': '#fcecec',
+    'game': '#ececfc', 'drive': '#ececfc',
+    'play': '#ececfc', 'agg_play': '#ececfc',
+    'play_player': '#ececfc',
+}
+
+
+def mk_type(row):
+    if row['domain_name']:
+        type = row['domain_name']
+    elif row['data_type'] == 'USER-DEFINED' and row['udt_name']:
+        type = row['udt_name']
+    else:
+        type = row['data_type']
+
+    if type == 'character varying':
+        type = 'varchar'
+
+    if row['is_nullable'] == 'YES':
+        type += ', null'
+    else:
+        type += ', not null'
+    return '%s' % type
+
+
+def is_pk(table, col):
+    if col == 'profile_id':
+        return False
+    return col.endswith('_id')
+
+
+def is_fk(table, col):
+    if table == 'game' and col == 'gsis_id':
+        return False
+    if col == 'profile_id':
+        return False
+    return col.endswith('_id') and not col.startswith(table)
+
+
+def in_whitelist(row):
+    return row['column_name'] in condense_whitelist[row['table_name']]
+
+
+def mk_column(row):
+    col = row['column_name']
+    table = row['table_name']
+    pk = '*' if is_pk(table, col) else ''
+    fk = '+' if is_fk(table, col) else ''
+    return template_column.format(pk=pk, fk=fk, column=col, type=mk_type(row))
+
+
+condense = len(sys.argv) == 2 and sys.argv[1] == '--condense'
+db = nfldb.connect()
+entities = []
+with nfldb.Tx(db) as cursor:
+    for table in tables:
+        cursor.execute('''
+            SELECT
+                table_name, column_name, udt_name, data_type, domain_name,
+                is_nullable
+            FROM information_schema.columns
+            WHERE table_name = %s
+        ''', (table,))
+        columns = []
+        for row in cursor.fetchall():
+            if not condense or in_whitelist(row):
+                columns.append(mk_column(row))
+
+        entity = template_entity.format(name=table, columns='\n'.join(columns),
+                                        color=colors[table])
+        entities.append(entity)
+
+# No magic for relationships. Just gotta write'em out manually.
+relationships = '''
+player      *--1 team
+game        *--1 team {label: "home"}
+game        *--1 team {label: "away"}
+drive       *--1 team
+play        *--1 team
+play_player *--1 team
+
+game        1--* drive
+game        1--* play
+game        1--* play_player
+
+drive       1--* play
+drive       1--* play_player
+
+play        1--* play_player
+agg_play    1--1 play
+
+player      1--* play_player
+'''
+
+print(template_erd.format(entities='\n'.join(entities),
+                          relationships=relationships,
+                          condensed=' (condensed)' if condense else ''))
