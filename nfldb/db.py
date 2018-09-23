@@ -12,9 +12,7 @@ from psycopg2.extensions import TRANSACTION_STATUS_INTRANS
 from psycopg2.extensions import new_type, register_type
 
 import pytz
-
-import nfldb.team
-
+import nfldb
 __pdoc__ = {}
 
 api_version = 8
@@ -35,15 +33,6 @@ The total number of queries executed. Only updated when _SHOW_QUERIES
 is true.
 """
 
-_config_home = os.getenv('XDG_CONFIG_HOME')
-if not _config_home:
-    home = os.getenv('HOME')
-    if not home:
-        _config_home = ''
-    else:
-        _config_home = path.join(home, '.config')
-
-
 def config(config_path=''):
     """
     Reads and loads the configuration file containing PostgreSQL
@@ -62,7 +51,9 @@ def config(config_path=''):
     `config_path`, `sys.prefix/share/nfldb/config.ini` and
     `$XDG_CONFIG_HOME/nfldb/config.ini`.
     """
-    paths = ["../config.ini"]
+    dirname = os.path.dirname(__file__)
+    config = os.path.join(dirname, '../config.ini')
+    paths = [config]
     tried = []
     cp = ConfigParser.RawConfigParser()
     for p in paths:
