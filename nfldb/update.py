@@ -11,10 +11,10 @@ import sys
 import time
 
 import nfldb
-
+import requests
 import nflgame
 import nflgame.live
-
+import json
 
 _simulate = None
 """
@@ -61,6 +61,14 @@ def game_from_id(cursor, gsis_id):
     if g is None:  # Whoops. I guess the pregame hasn't started yet?
         return game_from_schedule(cursor, gsis_id)
     return nfldb.Game._from_nflgame(cursor.connection, g)
+
+
+def test_function():
+    db = nfldb.connect()
+    with nfldb.Tx(db) as cursor:
+       g = game_from_id(cursor, "2018091609")
+       print(g)
+       sys.exit()
 
 
 def game_from_id_simulate(cursor, gsis_id):
@@ -372,6 +380,7 @@ def update_games(db, batch_size=5):
     # Comparatively, updating players is pretty simple. Player meta data
     # changes infrequently, which means we can update it on a larger interval
     # and we can be less careful about performance.
+    game_data  = []
     with nfldb.Tx(db) as cursor:
         lock_tables(cursor)
 
@@ -402,6 +411,12 @@ def update_games(db, batch_size=5):
             log('Updating %d games in progress...' % len(playing))
             for gid in playing:
                 g = game_from_id(cursor, gid)
+                payload ={'gsis_id': g.gsis_id, 'home_team' : g.home_team, 'home_score' : g.home_score, 'away_team': g.away_team, 'away_score': g.away_score,
+                            "play_players" : get_play_player_ids(g.play_players)
+                            }                
+                #what is in g, call endpoint here
+                #ping_endpoint(g)
+                game_data.append(payload)
                 log('\t%s' % g)
                 g._save(cursor)
             log('done.')
@@ -412,7 +427,22 @@ def update_games(db, batch_size=5):
         #
         # See issue #42.
         update_current_week_schedule(db)
+        return game_data
 
+def ping_endpoint(game):
+    headers = {'Content-Type': 'application/json', 'Accept':'application/json'}
+    # payload ={'gsis_id': game.gsis_id, 'home_team' : game.home_team, 'home_score' : game.home_score, 'away_team': game.away_team, 'away_score': game.away_score,
+    #  "play_players" : get_play_player_ids(game.play_players)
+    #   }
+    url = 'http://ec2-18-222-26-84.us-east-2.compute.amazonaws.com/api/fire/game/event'
+    r = requests.post(url,data=json.dumps(game), headers=headers)
+    print(r.text)
+
+def get_play_player_ids(players):
+    temp = []
+    for p in players:
+        temp.append(p.player_id)
+    return temp
 
 def update_simulate(db):
     with nfldb.Tx(db) as cursor:
@@ -522,7 +552,7 @@ def run(player_interval=43200, interval=None, update_schedules=False,
                 update_players(cursor, player_interval)
 
             # Now update games.
-            update_games(db, batch_size=batch_size)
+            game_data = update_games(db, batch_size=batch_size)
 
         log('Closing database connection... ', end='')
         db.close()
@@ -530,6 +560,7 @@ def run(player_interval=43200, interval=None, update_schedules=False,
 
         log('FINISHED NFLDB UPDATE AT %s' % now())
         log('-' * 79)
+        ping_endpoint(game_data)
 
     if interval is None:
         doit()
