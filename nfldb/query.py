@@ -348,8 +348,8 @@ class Comparison (Condition):
         if aggregate:
             field = 'SUM(%s)' % field
         if isinstance(self.value, tuple) or isinstance(self.value, list):
-            assert self.operator == '=', \
-                'Disjunctions must use "=" for column "%s"' % field
+            #assert self.operator == '=', \
+              #  'Disjunctions must use "=" for column "%s"' % field
             vals = [cursor.mogrify('%s', (v,)) for v in self.value]
             return '%s IN (%s)' % (field, ', '.join(vals))
         else:

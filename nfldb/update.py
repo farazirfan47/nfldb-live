@@ -434,6 +434,7 @@ def ping_endpoint(game):
     # payload ={'gsis_id': game.gsis_id, 'home_team' : game.home_team, 'home_score' : game.home_score, 'away_team': game.away_team, 'away_score': game.away_score,
     #  "play_players" : get_play_player_ids(game.play_players)
     #   }
+    #url = 'http://127.0.0.1:8000/api/fire/game/event'
     url = 'http://ec2-18-222-26-84.us-east-2.compute.amazonaws.com/api/fire/game/event'
     r = requests.post(url,data=json.dumps(game), headers=headers)
     print(r.text)
@@ -445,18 +446,24 @@ def get_play_player_ids(players):
     return temp
 
 def update_simulate(db):
+    game_data  = []
     with nfldb.Tx(db) as cursor:
         log('Simulating %d games...' % len(_simulate['gsis_ids']))
         for gid in _simulate['gsis_ids']:
             g = game_from_id_simulate(cursor, gid)
+            payload ={'gsis_id': g.gsis_id, 'home_team' : g.home_team, 'home_score' : g.home_score, 'away_team': g.away_team, 'away_score': g.away_score,
+            "play_players" : get_play_player_ids(g.play_players)
+            }                
+            #what is in g, call endpoint here
+            #ping_endpoint(g)
+            game_data.append(payload)
             log('\t%s' % g)
             g._save(cursor)
         log('done.')
-
         if len(_simulate['gsis_ids']) == 0:
             return True
     _simulate['drives'] += 1
-    return False
+    return game_data
 
 
 def lock_tables(cursor):
@@ -540,8 +547,8 @@ def run(player_interval=43200, interval=None, update_schedules=False,
         if update_schedules:
             update_game_schedules(db)
         elif simulate is not None:
-            done = update_simulate(db)
-            if done:
+            game_data = update_simulate(db)
+            if game_data == True:
                 log('Simulation complete.')
                 return True
         else:
