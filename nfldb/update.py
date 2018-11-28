@@ -434,8 +434,8 @@ def ping_endpoint(game):
     # payload ={'gsis_id': game.gsis_id, 'home_team' : game.home_team, 'home_score' : game.home_score, 'away_team': game.away_team, 'away_score': game.away_score,
     #  "play_players" : get_play_player_ids(game.play_players)
     #   }
-    #url = 'http://127.0.0.1:8000/api/fire/game/event'
-    url = 'http://ec2-18-222-26-84.us-east-2.compute.amazonaws.com/api/fire/game/event'
+   # url = 'http://127.0.0.1:8000/api/fire/game/event'
+    url = 'http://dreamteam-horizon.us-east-2.elasticbeanstalk.com/api/fire/game/event'
     r = requests.post(url,data=json.dumps(game), headers=headers)
     print(r.text)
 
