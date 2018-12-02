@@ -196,7 +196,7 @@ supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
 serverurl=unix:///tmp/supervisor.sock
 
 [program:laravel_queue]
-command=sudo python nfldb-update --interval=30
+command=python nfldb-update --interval=30
 directory=/var/app/current
 stdout_logfile=/var/app/support/logs/nfldb.log
 logfile_maxbytes=0
