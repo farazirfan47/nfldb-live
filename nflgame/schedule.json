@@ -54244,7 +54244,24 @@
     "week": 17,
     "year": 2018
    }
+  ],
+  [
+   "2019080151",
+   {
+    "away": "DEN",
+    "day": 1,
+    "eid": "2019080151",
+    "gamekey": "57835",
+    "home": "ATL",
+    "meridiem": "PM",
+    "month": 8,
+    "season_type": "PRE",
+    "time": "8:00",
+    "wday": "Thu",
+    "week": 0,
+    "year": 2019
+   }
   ]
  ],
- "time": 1537717099.344223
+ "time": 1564307330.978586
 }
