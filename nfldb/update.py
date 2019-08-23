@@ -435,7 +435,8 @@ def ping_endpoint(game):
     #  "play_players" : get_play_player_ids(game.play_players)
     #   }
     #url = 'http://127.0.0.1:8003/api/fire/game/event'
-    url = 'http://staging.worker.bettle.co/api/fire/game/event'
+    #url = 'http://staging.worker.bettle.co/api/fire/game/event'
+    url = 'https://worker.bettle.co/api/fire/game/event'
     r = requests.post(url,data=json.dumps(game), headers=headers)
     print(r.text)
 
